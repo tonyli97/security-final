@@ -34,6 +34,94 @@ check: check if the request it’s valid (ex: if there are any messages pending 
 #define PRINTDBG(...)
 #endif
 
+
+int countFilesInDirectories (char* dirname, char* recipient ) {
+	
+	DIR *dp;
+	struct dirent **list;
+	int i = 0 ; 
+	char mailbox[300];
+	
+	// generate mailbox path for recipient
+	strcpy(mailbox, dirname);
+	strcat(mailbox,"/");
+	strcat(mailbox,recipient);
+	//PRINTDBG("Mailbox: %s \n", mailbox);
+	
+	
+	int count = scandir(mailbox, &list, NULL, alphasort );
+	if( count < 0 ){
+		 //perror("Couldn't open the directory");
+		 exit(2);
+	 }
+
+	return count - 2;
+}
+
+int gen_CA_and_Interm_certs (){
+    system("./ca_interm.sh");
+    return 0; 
+}
+
+/*
+This function calls the script client.sh with argument $1=username. 
+This will create a CSR and then a certificate on the server side and 
+store it in the user's 
+*/
+int gen_user_certs (char *username){
+    // char str[100];
+    char *str = malloc(sizeof(char) * 100);
+
+    strcpy(str, "./client.sh ");
+    printf ("COMMAND IS : %s\n", str);
+    strcat(str, username); 
+    system(str);
+
+    printf ("COMMAND IS : %s\n", str);
+    free(str);
+    return 0; 
+}
+
+int gen_user_CSR (char *username, char **csr){
+    char *str = malloc(sizeof(char) * 100);
+    strcpy(str, "./generate_csr.sh ");
+    printf ("COMMAND IS : %s\n", str);
+    strcat(str, username); 
+    system(str);
+
+    printf ("COMMAND IS : %s\n", str);
+
+    char * buffer = 0;
+    long length;
+    FILE * f = fopen ("csr.txt", "rb");
+
+    if (f)
+    {
+    fseek (f, 0, SEEK_END);
+    length = ftell (f);
+    fseek (f, 0, SEEK_SET);
+    buffer = malloc (length);
+    if (buffer)
+    {
+        fread (buffer, 1, length, f);
+    }
+    fclose (f);
+    }
+    if (buffer)
+    {
+        *csr = buffer; 
+    }
+
+    free(str);
+    return 0; 
+}
+
+int gen_server_certs (){
+    
+    system("./server.sh");
+    return 0; 
+}
+
 /*
 This function searches for the given username in the Server/users folder
 */
@@ -106,7 +194,7 @@ char line[] = "polypose $6$mojxgG.mliBuOu8B$yZqwF2jVIDiA8iddJd1OGz5HGdUnSunUDc/t
 *****
 
 */
-int processLine(char line[], char **username, char **salt, char **password) {
+int processLine(char line[], char **username, char **salt) {
   
   char * pch;
   PRINTDBG ("Splitting string into tokens:\n");
@@ -117,11 +205,11 @@ int processLine(char line[], char **username, char **salt, char **password) {
   *salt = pch; 
 
   pch = strtok (NULL, " ");
-  *password = pch; 
+//   *password = pch; 
 
     PRINTDBG ("%s\n",*username);
     PRINTDBG ("%s\n",*salt);
-    PRINTDBG ("%s\n",*password);
+    // PRINTDBG ("%s\n",*password);
 
   return 0;
 }
@@ -135,7 +223,7 @@ int checkPassword (char *username, char *givenPassword){
     */
 
     char *salt=NULL;
-    char *stored_password=NULL;
+    // char *stored_password=NULL;
   
     if (validateUsername("./Server/users", username) == 0) 
         PRINTDBG("Found username!"); 
@@ -150,7 +238,7 @@ int checkPassword (char *username, char *givenPassword){
     char line[256]; 
 
     findLine(fName, username, line); 
-    processLine(line, &username, &salt, &stored_password); 
+    processLine(line, &username, &salt); 
     
     PRINTDBG("after  process line, stored psw is %s \n", stored_password);
 
@@ -181,11 +269,18 @@ int changePassword (){
 
 int main(int argc, char *argv[])
 {
-   
+        char username[] = "corector";
+        char *csr; 
+        gen_CA_and_Interm_certs(); 
+        gen_user_CSR(username, &csr); 
+        printf("THIS IS the csr %s\n" , csr); 
+
+/*
         char password[100] = "";
         char username[100] = "";
         strcpy(username, getpass("Enter username: ")); 
         strcpy(password, getpass("Enter password: ")); 
+        
 
 
         char *psw = (char *)malloc(strlen(password)+1);
@@ -204,6 +299,6 @@ int main(int argc, char *argv[])
             printf("Logged in successfully!\n");
         else 
             printf ("Wrong password or user.\n");
-        
+        */
         return 0;
 }

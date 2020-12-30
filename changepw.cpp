@@ -1,5 +1,3 @@
-//REPLACED BY LOGIN.CPP - Refer to that to as template to connect to server and send custom messages
-
 #include <memory>
 #include <stdarg.h>
 #include <stdexcept>
@@ -8,6 +6,7 @@
 #include <string.h>
 #include <string>
 #include <vector>
+#include <unistd.h>
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -124,11 +123,17 @@ std::string receive_http_message(BIO *bio)
     return headers + "\r\n" + body;
 }
 
-void send_http_request(BIO *bio, const std::string& line, const std::string& host)
+void send_http_request(BIO *bio, const std::string& line, const std::string& host, const std::string& name, const std::string& pass, const std::string& newpass)
 {
     std::string request = line + "\r\n";
     request += "Host: " + host + "\r\n";
     request += "\r\n";
+    request += std::string("newpass") + "\r\n";
+    request += name + "\r\n";
+    request += pass + "\r\n";
+    request += newpass + "\r\n";
+
+
 
     BIO_write(bio, request.data(), request.size());
     BIO_flush(bio);
@@ -171,8 +176,12 @@ void verify_the_certificate(SSL *ssl, const std::string& expected_hostname)
 
 } // namespace my
 
-int main()
+int main(int argc, char *argv[])
 {
+	//char *c;
+	std::string name = getpass("Enter username: ");
+	std::string pass = getpass("Enter password: ");
+    std::string newpass = getpass("Enter new password: ");
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     SSL_library_init();
     SSL_load_error_strings();
@@ -208,7 +217,7 @@ int main()
     }
     my::verify_the_certificate(my::get_ssl(ssl_bio.get()), "duckduckgo.com");
 
-    my::send_http_request(ssl_bio.get(), "GET / HTTP/1.1", "duckduckgo.com");
+    my::send_http_request(ssl_bio.get(), "GET / HTTP/1.1", "duckduckgo.com", name, pass, newpass);
     std::string response = my::receive_http_message(ssl_bio.get());
     printf("%s", response.c_str());
 }
